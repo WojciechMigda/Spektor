@@ -46,9 +46,6 @@ def identify_faces(app, logger, stream, fname):
         face = {'rectangle': dict(left=fr.left(), top=fr.top(), right=fr.right(), bottom=fr.bottom(), embedding=list(rep), uuid=ident)}
         faces.append(face)
 
-        update_identities_local_db(app.config['db'], {str(ident): rep})
-        update_identities_remote_db(app.logger, app.config['db_host'], app.config['db_port'], {str(ident): [x for x in rep]})
-
     return dict(filename=fname, shape=image.shape, faces=faces, time=time.time() - time0)
 
 
