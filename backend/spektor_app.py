@@ -40,6 +40,8 @@ class Image(db.Model):
     __table_args__ = {'sqlite_autoincrement': True}
     id = db.Column(db.Integer, primary_key=True)
     image = db.Column(db.LargeBinary)
+    thumb = db.Column(db.LargeBinary)
+    personas = db.relationship('Persona', backref='Avatar')
 
 class Face(db.Model):
     __bind_key__ = 'faces'
@@ -82,37 +84,44 @@ from flask_admin import form as fa_form
 from flask_admin.contrib.sqla import ModelView
 
 admin = Admin(app, name='SPEKTOR', template_mode='bootstrap3')
-admin.add_view(ModelView(Persona, db.session))
-#admin.add_view(ModelView(Image, db.session))
-class ImageView(ModelView):
+
+class PersonaView(ModelView):
     def _list_thumbnail(view, context, model, name):
-        if not model.image:
+        if not model.Avatar:
             return ''
 
         import base64, jinja2
-        return jinja2.Markup('<img src="data:;base64,{}">'.format(base64.b64encode(model.image).decode('utf8')))
+        return jinja2.Markup('<img src="data:;base64,{}">'.format(base64.b64encode(model.Avatar.thumb).decode('utf8')))
 
-        return Markup(
-            '<img src="%s">' %
-            url_for('static',
-                    filename=form.thumbgen_filename(model.path))
-        )
+    column_formatters = dict(Avatar=_list_thumbnail)
+    pass
 
-    def image_validation(form, field):
-        if len(field.data.filename) == 0:
-            raise ValidationError('None file selected')
-        import imghdr
-        if imghdr.what(field.data) != 'jpeg':
-            raise ValidationError('file must be a valid jpeg image.')
-        field.data = field.data.stream.read()
-        return 'lalala'
+admin.add_view(PersonaView(Persona, db.session))
 
-    column_formatters = dict(image=_list_thumbnail)
-    #form_extra_fields = dict(image=fa_form.ImageUploadField('Image', base_path='.', thumbnail_size=(100, 100, True)))
-    form_overrides = dict(image=fa_form.FileUploadField)
-    form_args = dict(image=dict(validators=[image_validation]))
+class ImageView(ModelView):
+    column_exclude_list = ('image',)
+    def _list_thumbnail(view, context, model, name):
+        if not model.thumb:
+            return ''
+
+        import base64, jinja2
+        return jinja2.Markup('<img src="data:;base64,{}">'.format(base64.b64encode(model.thumb).decode('utf8')))
+
+    column_formatters = dict(thumb=_list_thumbnail)
     can_edit = False
     can_create = False
+
+    #def image_validation(form, field):
+    #    if len(field.data.filename) == 0:
+    #        raise ValidationError('None file selected')
+    #    import imghdr
+    #    if imghdr.what(field.data) != 'jpeg':
+    #        raise ValidationError('file must be a valid jpeg image.')
+    #    field.data = field.data.stream.read()
+    #    return 'lalala'
+    #form_extra_fields = dict(image=fa_form.ImageUploadField('Image', base_path='.', thumbnail_size=(100, 100, True)))
+    #form_overrides = dict(image=fa_form.FileUploadField)
+    #form_args = dict(image=dict(validators=[image_validation]))
 
 admin.add_view(ImageView(Image, db.session))
 admin.add_view(ModelView(Face, db.session))
