@@ -33,7 +33,7 @@ class Persona(db.Model):
     first_name = db.Column(db.Unicode)
     last_name = db.Column(db.Unicode)
     notes = db.Column(db.Unicode)
-    avatar = db.Column(db.Integer, db.ForeignKey('image.id'))
+    mugshot = db.Column(db.Integer, db.ForeignKey('image.id'))
     avatars = db.relationship('Avatar', backref='Persona')
 
 class Image(db.Model):
@@ -42,7 +42,7 @@ class Image(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     image = db.Column(db.LargeBinary)
     thumb = db.Column(db.LargeBinary)
-    personas = db.relationship('Persona', backref='Avatar')
+    personas = db.relationship('Persona', backref='Mugshot')
     faces = db.relationship('Face', backref='Image')
 
 class Face(db.Model):
@@ -73,7 +73,7 @@ manager = flask_restless.APIManager(app, flask_sqlalchemy_db=db)
 
 # Create API endpoints, which will be available at /api/<tablename> by
 # default. Allowed HTTP methods can be specified as well.
-manager.create_api(Persona, methods=['GET', 'POST', 'DELETE'], exclude_columns=['Avatar'])
+manager.create_api(Persona, methods=['GET', 'POST', 'DELETE'], exclude_columns=['Mugshot'])
 
 import pp_image
 manager.create_api(Image, methods=['GET', 'POST', 'DELETE'],
@@ -90,13 +90,13 @@ admin = Admin(app, name='SPEKTOR', template_mode='bootstrap3')
 
 class PersonaView(ModelView):
     def _list_thumbnail(view, context, model, name):
-        if not model.Avatar:
+        if not model.Mugshot:
             return ''
 
         import base64, jinja2
-        return jinja2.Markup('<img src="data:;base64,{}">'.format(base64.b64encode(model.Avatar.thumb).decode('utf8')))
+        return jinja2.Markup('<img src="data:;base64,{}">'.format(base64.b64encode(model.Mugshot.thumb).decode('utf8')))
 
-    column_formatters = dict(Avatar=_list_thumbnail)
+    column_formatters = dict(Mugshot=_list_thumbnail)
     pass
 
 admin.add_view(PersonaView(Persona, db.session))

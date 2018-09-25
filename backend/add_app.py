@@ -99,7 +99,7 @@ def work(UI, FIRST, LAST, NOTES, infile):
     # store persona
 
     url = spektor_url('persona')
-    rv = requests.post(url, json=dict(first_name=FIRST, last_name=LAST, notes=NOTES, avatar=image_id))
+    rv = requests.post(url, json=dict(first_name=FIRST, last_name=LAST, notes=NOTES, mugshot=image_id))
     assert(rv.status_code == 201)
     js = json.loads(rv.text)
     persona_id = js['id']
