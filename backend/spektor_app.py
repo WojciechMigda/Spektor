@@ -28,6 +28,7 @@ import flask_restless
 
 class Persona(db.Model):
     __bind_key__ = 'personas'
+    __table_args__ = {'sqlite_autoincrement': True}
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.Unicode)
     last_name = db.Column(db.Unicode)
@@ -36,6 +37,7 @@ class Persona(db.Model):
 
 class Image(db.Model):
     __bind_key__ = 'images'
+    __table_args__ = {'sqlite_autoincrement': True}
     id = db.Column(db.Integer, primary_key=True)
     image = db.Column(db.LargeBinary)
 
@@ -51,6 +53,7 @@ class Face(db.Model):
 
 class Avatar(db.Model):
     __bind_key__ = 'avatars'
+    __table_args__ = {'sqlite_autoincrement': True}
     id = db.Column(db.Integer, primary_key=True)
     persona_id = db.Column(db.Integer, db.ForeignKey('persona.id'))
     face_id = db.Column(db.Integer, db.ForeignKey('face.uuid'))
@@ -149,6 +152,6 @@ def work(HOST, PORT):
     """
     app.logger.info('App ready!')
 
-    app.run(host=HOST, port=PORT)
+    app.run(host=HOST, port=PORT, threaded=True)
 
     return

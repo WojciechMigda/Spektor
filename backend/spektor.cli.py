@@ -8,9 +8,6 @@ __date__ = '2018-09-17'
 __updated__ = '2018-09-17'
 
 
-import logging
-
-
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
     from sys import argv as Argv
