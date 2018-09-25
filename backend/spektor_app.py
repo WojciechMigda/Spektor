@@ -34,6 +34,7 @@ class Persona(db.Model):
     last_name = db.Column(db.Unicode)
     notes = db.Column(db.Unicode)
     avatar = db.Column(db.Integer, db.ForeignKey('image.id'))
+    avatars = db.relationship('Avatar', backref='Persona')
 
 class Image(db.Model):
     __bind_key__ = 'images'
@@ -42,6 +43,7 @@ class Image(db.Model):
     image = db.Column(db.LargeBinary)
     thumb = db.Column(db.LargeBinary)
     personas = db.relationship('Persona', backref='Avatar')
+    faces = db.relationship('Face', backref='Image')
 
 class Face(db.Model):
     __bind_key__ = 'faces'
@@ -52,6 +54,7 @@ class Face(db.Model):
     left = db.Column(db.Integer)
     right = db.Column(db.Integer)
     embedding = db.Column(db.String) # json-ified array of floats
+    avatars = db.relationship('Avatar', backref='Face')
 
 class Avatar(db.Model):
     __bind_key__ = 'avatars'
@@ -70,13 +73,13 @@ manager = flask_restless.APIManager(app, flask_sqlalchemy_db=db)
 
 # Create API endpoints, which will be available at /api/<tablename> by
 # default. Allowed HTTP methods can be specified as well.
-manager.create_api(Persona, methods=['GET', 'POST', 'DELETE'])
+manager.create_api(Persona, methods=['GET', 'POST', 'DELETE'], exclude_columns=['Avatar'])
 
 import pp_image
 manager.create_api(Image, methods=['GET', 'POST', 'DELETE'],
                    postprocessors=pp_image.postprocessors,
                    preprocessors=pp_image.preprocessors)
-manager.create_api(Face, methods=['GET', 'POST', 'DELETE'])
+manager.create_api(Face, methods=['GET', 'POST', 'DELETE'], exclude_columns=['Image'])
 manager.create_api(Avatar, methods=['GET', 'POST', 'DELETE'])
 
 from flask_admin import Admin
@@ -124,8 +127,18 @@ class ImageView(ModelView):
     #form_args = dict(image=dict(validators=[image_validation]))
 
 admin.add_view(ImageView(Image, db.session))
-admin.add_view(ModelView(Face, db.session))
-admin.add_view(ModelView(Avatar, db.session))
+
+class FaceView(ModelView):
+    can_edit = False
+    can_create = False
+
+admin.add_view(FaceView(Face, db.session))
+
+class AvatarView(ModelView):
+    can_edit = False
+    can_create = False
+
+admin.add_view(AvatarView(Avatar, db.session))
 
 
 

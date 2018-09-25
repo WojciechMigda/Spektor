@@ -118,4 +118,10 @@ def work(UI, FIRST, LAST, NOTES, infile):
     assert(rv.status_code == 201)
     face_id = js['uuid']
 
+    # store avatar
+
+    url = spektor_url('avatar')
+    rv = requests.post(url, json=dict(persona_id=persona_id, face_id=face_id))
+    assert(rv.status_code == 201)
+
     pass
