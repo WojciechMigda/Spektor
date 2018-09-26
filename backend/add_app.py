@@ -107,16 +107,24 @@ def work(UI, FIRST, LAST, NOTES, infile):
     # store face
 
     url = spektor_url('face')
-    rv = requests.post(url, json=dict(uuid=largest['rectangle']['uuid'],
+    face_id = largest['rectangle']['uuid']
+
+    # first check of there's one already
+
+    rv = requests.get(url, params=dict(q='{"filters":[{"name":"uuid","op":"eq","val":"' +  face_id + '"}]}'))
+    js = json.loads(rv.text)
+    assert(rv.status_code == 200)
+
+    if js['num_results'] == 0:
+        rv = requests.post(url, json=dict(uuid=face_id,
                                       image_id=image_id, top=largest['rectangle']['top'],
                                       bottom=largest['rectangle']['bottom'],
                                       left=largest['rectangle']['left'],
                                       right=largest['rectangle']['right'],
                                       embedding=json.dumps(largest['rectangle']['embedding'])
                                       ))
-    js = json.loads(rv.text)
-    assert(rv.status_code == 201)
-    face_id = js['uuid']
+        js = json.loads(rv.text)
+        assert(rv.status_code == 201)
 
     # store avatar
 
