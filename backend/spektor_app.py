@@ -145,6 +145,33 @@ admin.add_view(AvatarView(Avatar, db.session))
 ################################################################################
 ################################################################################
 
+from flask_expects_json import expects_json
+
+SCHEMA = {
+    'type': 'object',
+    'required': ['embedding'],
+    'properties': {
+        'embedding': {
+              'type': 'array',
+              'minItems': 128,
+              'maxItems': 128,
+              'items': [{
+                  'type': 'number'
+          }]
+        }
+    },
+}
+
+@app.route('/spektor/analyze', methods=['POST'])
+@expects_json(SCHEMA)
+def on_analyze():
+    import spektor_impl as impl
+    rv = impl.on_analyze(app, F.request.get_json(), Face.query.all())
+    return F.jsonify(rv)
+
+
+################################################################################
+################################################################################
 
 def initialize_logging(app, DEBUG):
     from logging.config import dictConfig
@@ -163,10 +190,20 @@ def initialize_logging(app, DEBUG):
     return
 
 
+def load_models(app):
+    import pickle
+    ridge_reg = pickle.load(open('models/ridge_lfw.pkl', 'rb'))
+    app.config.update(ridge_reg=ridge_reg)
+    xgb_clf = pickle.load(open('models/xgb_ridge_lfw.pkl', 'rb'))
+    app.config.update(xgb_clf=xgb_clf)
+
+
 def work(HOST, PORT):
     initialize_logging(app, True)
 
     app.logger.info('Starting app')
+
+    load_models(app)
 
     """
     Having an option to pass an IP address which will be used by Flask
