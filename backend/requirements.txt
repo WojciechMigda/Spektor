@@ -1,3 +1,6 @@
 flask_admin
 flask_restless
 flask_sqlalchemy
+xgboost
+scikit-learn
+flask-expects-json
