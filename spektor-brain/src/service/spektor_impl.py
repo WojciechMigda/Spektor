@@ -4,6 +4,8 @@ from werkzeug.utils import secure_filename
 import dlib
 import openface
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 def do_error(s):
     return F.jsonify(dict(success=False, message=s))
@@ -33,8 +35,11 @@ def identify_faces(app, logger, stream, fname):
     face_aligner = app.config['face_aligner']
     net = app.config['net']
 
-    face_rectangles = face_detector(image, 1)
+    #face_rectangles = face_detector(image, 1)
+    face_rectangles, scores, _ = face_detector.run(image, 0, -1)
     logger.info('Faces: {}'.format(face_rectangles))
+    logger.info('Scores: {}'.format(scores))
+    face_rectangles = [fr for i, fr in enumerate(face_rectangles) if scores[i] > -0.4]
 
     faces = []
     for i, fr in enumerate(face_rectangles):
