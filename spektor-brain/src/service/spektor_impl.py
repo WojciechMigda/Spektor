@@ -39,7 +39,6 @@ def identify_faces(app, logger, stream, fname):
     face_rectangles, scores, _ = face_detector.run(image, 0, -1)
     logger.info('Faces: {}'.format(face_rectangles))
     logger.info('Scores: {}'.format(scores))
-    face_rectangles = [fr for i, fr in enumerate(face_rectangles) if scores[i] > -0.4]
 
     faces = []
     for i, fr in enumerate(face_rectangles):
@@ -48,7 +47,7 @@ def identify_faces(app, logger, stream, fname):
         rep = net.forward(aligned_face)
 
         ident = uuid.UUID(int=hash(tuple(rep)) % 2 ** 128)
-        face = {'rectangle': dict(left=fr.left(), top=fr.top(), right=fr.right(), bottom=fr.bottom(), embedding=list(rep), uuid=ident)}
+        face = {'rectangle': dict(left=fr.left(), top=fr.top(), right=fr.right(), bottom=fr.bottom(), embedding=list(rep), uuid=ident, confidence=scores[i])}
         faces.append(face)
 
     return dict(filename=fname, shape=image.shape, faces=faces, time=time.time() - time0)
