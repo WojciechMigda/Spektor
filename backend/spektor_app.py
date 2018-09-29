@@ -158,7 +158,8 @@ SCHEMA = {
               'items': [{
                   'type': 'number'
           }]
-        }
+        },
+        'nbest' : {'type' : 'integer', 'minimum' : 0}
     },
 }
 
