@@ -1,49 +1,32 @@
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-"""
-def thumb_from_bytes(bytes, height=200):
-    from io import BytesIO
-    istream = BytesIO(bytes)
-    from PIL import Image, ImageOps
-    im = Image.open(istream)
-    size = im.size # (int, int)
-    ratio = max(size[1] / height, 1.0)
-    thumb = ImageOps.fit(im, (int(round(size[0] / ratio)), int(round(size[1] / ratio))), Image.ANTIALIAS)
-    ostream = BytesIO()
-    thumb.save(ostream, 'JPEG', quality=60)
-    ostream.seek(0)
-    return ostream.read()
-"""
+from db_tools import spektor_url, save_image_as_bytes, save_persona, save_avatar, maybe_save_face
 
 
 def brain_url(endpoint):
     return 'http://127.0.0.1:5000/spektor/' + endpoint
 
 
-def spektor_url(endpoint):
-    return 'http://127.0.0.1:6900/api/' + endpoint
-
-
-def analyze_face(face):
+def analyze_face(face, NBEST):
     import requests
     import json
 
     rect = face['rectangle']
 
     url = 'http://127.0.0.1:6900/spektor/analyze'
-    rv = requests.post(url, json=dict(embedding=rect['embedding']))
+    rv = requests.post(url, json=dict(embedding=rect['embedding'], nbest=NBEST))
     assert(rv.status_code == 200)
     matched_ranked = json.loads(rv.text)
 
     return matched_ranked
 
 
-def analyze_faces(faces):
-    return [analyze_face(face) for face in faces]
+def analyze_faces(faces, NBEST):
+    return [analyze_face(face, NBEST) for face in faces]
 
 
-def analyze_image(infile):
+def analyze_image(infile, confidence_thr):
     print('Analyzing {}'.format(infile.name))
 
     import requests
@@ -60,19 +43,54 @@ def analyze_image(infile):
 
     faces = rv['faces']
 
+    # filter away detected faces with confidence level below threshold
+    faces = [f for f in faces if f['rectangle']['confidence'] >= confidence_thr]
+
     if len(faces) == 0:
-        print('No face was detected in the selected image. Quiting..')
-        return
+        print('No face with confidence score >= {} was detected in the selected image. Quiting..'.format(confidence_thr))
+        return []
 
     print('Found {} face(s) on {}'.format(len(faces), infile.name))
     return faces
 
 
-def work(infiles):
+def names_by_ids(ids):
+    import requests
+    import json
 
-    found_faces = [(infile, analyze_image(infile)) for infile in infiles]
+    url = spektor_url('persona')
 
-    matched_faces = [(infile, faces, analyze_faces(faces)) for infile, faces in found_faces]
+    rows = []
+    page=1
+
+    while True:
+        rv = requests.get(url, params=dict(q='{"filters":[{"name":"id","op":"in","val":"' +  str(ids) + '"}]}', page=page))
+        js = json.loads(rv.text)
+        assert(rv.status_code == 200)
+        rows.extend(js['objects'])
+        if js['page'] <= js['total_pages']:
+            break
+        page += 1
+
+    mapping = {row['id']: (row['first_name'], row['last_name']) for row in rows}
+    rv = [mapping[id] for id in ids]
+    return rv
+
+
+def random_name():
+    import string
+    allchar = string.ascii_letters + string.digits
+
+    import random
+    rv = ('NoName', '#{}'.format("".join(random.choice(allchar) for x in range(10))))
+    return rv
+
+
+def work(infiles, THR=0.98):
+
+    found_faces = [(infile, analyze_image(infile, confidence_thr=-0.4)) for infile in infiles]
+
+    matched_faces = [(infile, faces, analyze_faces(faces, NBEST=5)) for infile, faces in found_faces]
 
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
@@ -81,21 +99,41 @@ def work(infiles):
     for infile, faces, faces_scores in matched_faces:
         print('>>> Image {}'.format(infile.name))
 
+        infile.seek(0)
+        image_as_bytes = infile.read()
+        image_id = save_image_as_bytes(image_as_bytes)
+
+        infile.seek(0)
         image = skio.imread(infile)
         fig, ax = plt.subplots(1)
 
         # Display the image
         ax.imshow(image)
 
-        for face, ranked_scored in zip(faces, faces_scores):
+        for face in faces:
             fr = face['rectangle']
+            maybe_save_face(fr['uuid'], image_id, top=fr['top'], bottom=fr['bottom'], left=fr['left'], right=fr['right'], embedding=fr['embedding'])
+
+        all_found_names = []
+        proposed_names = []
+
+        for fid, (face, ranked_scored) in enumerate(zip(faces, faces_scores)):
+            fr = face['rectangle']
+
+            # retrieve names of matched personas
+            found_names = names_by_ids([pair[1] for pair in ranked_scored])
+            all_found_names.append(found_names)
+
+            proposed_name = found_names[0] if ranked_scored[0][0] >= THR else random_name()
+            proposed_names.append(proposed_name)
+            proposed_name_s = '{} {}'.format(*proposed_name)
 
             # Create a Rectangle patch
             rect = patches.Rectangle((fr['left'], fr['top']), fr['right'] - fr['left'], fr['bottom'] - fr['top'], linewidth=2, edgecolor='lightgreen', facecolor='none')
 
             # Add the patch to the Axes
             ax.add_patch(rect)
-            plt.text(fr['left'], fr['bottom'], 'Richard Spencer',
+            plt.text(fr['left'], fr['bottom'], '[{}] {}'.format(fid + 1, proposed_name_s),
                  va='top',
                  #weight='bold',
                  family='monospace',
@@ -103,6 +141,39 @@ def work(infiles):
 
         plt.tight_layout()
         plt.show(block=False)
+
+        # query user for confirmation
+        for fid, (face, ranked_scored) in enumerate(zip(faces, faces_scores)):
+            print('>>> Face [{}]'.format(fid + 1))
+
+            if ranked_scored[0][0] >= THR:
+                print('... Face matched to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
+                print('... Please confirm either by typing number of a known persona or 0 to create new `NoName` persona')
+
+                N = None
+                for id, (name_t, (score, _)) in enumerate(zip(all_found_names[fid], ranked_scored)):
+                    if score < THR:
+                        break
+                    print('{}. {} {}, {:.1f}%'.format(id + 1, *name_t, score * 100))
+                    N = id + 1
+                print('0. create `NoName` persona')
+                while True:
+                    try:
+                        val = int(input('??? '))
+                    except Exception as e:
+                        continue
+                    if 0 <= int(val) <= N:
+                        break
+                if val == 0:
+                    persona_id = save_persona(*random_name(), 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+                else:
+                    persona_id = ranked_scored[val - 1][1]
+                    #print('Selected persona_id {} for {}'.format(persona_id, all_found_names[fid][val - 1]))
+            else:
+                print('... No matched persona was found. The best match was to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
+                persona_id = save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+
+            save_avatar(persona_id, face['rectangle']['uuid'])
         input('Press any key')
         plt.close()
 
@@ -114,60 +185,3 @@ def work(infiles):
     """
 
     return
-
-
-
-
-    # store image in the db
-
-    url = spektor_url('image')
-    import base64
-    infile.seek(0) # detect above has read till EOF
-    image_as_bytes = infile.read()
-    image_as_b64 = base64.b64encode(image_as_bytes).decode('utf8')
-
-    thumb_as_bytes = thumb_from_bytes(image_as_bytes)
-    thumb_as_b64 = base64.b64encode(thumb_as_bytes).decode('utf8')
-
-    rv = requests.post(url, json=dict(image=image_as_b64, thumb=thumb_as_b64))
-    assert(rv.status_code == 201)
-    js = json.loads(rv.text)
-    image_id = js['id']
-
-    # store persona
-
-    url = spektor_url('persona')
-    rv = requests.post(url, json=dict(first_name=FIRST, last_name=LAST, notes=NOTES, mugshot=image_id))
-    assert(rv.status_code == 201)
-    js = json.loads(rv.text)
-    persona_id = js['id']
-
-    # store face
-
-    url = spektor_url('face')
-    face_id = largest['rectangle']['uuid']
-
-    # first check of there's one already
-
-    rv = requests.get(url, params=dict(q='{"filters":[{"name":"uuid","op":"eq","val":"' +  face_id + '"}]}'))
-    js = json.loads(rv.text)
-    assert(rv.status_code == 200)
-
-    if js['num_results'] == 0:
-        rv = requests.post(url, json=dict(uuid=face_id,
-                                      image_id=image_id, top=largest['rectangle']['top'],
-                                      bottom=largest['rectangle']['bottom'],
-                                      left=largest['rectangle']['left'],
-                                      right=largest['rectangle']['right'],
-                                      embedding=json.dumps(largest['rectangle']['embedding'])
-                                      ))
-        js = json.loads(rv.text)
-        assert(rv.status_code == 201)
-
-    # store avatar
-
-    url = spektor_url('avatar')
-    rv = requests.post(url, json=dict(persona_id=persona_id, face_id=face_id))
-    assert(rv.status_code == 201)
-
-    pass
