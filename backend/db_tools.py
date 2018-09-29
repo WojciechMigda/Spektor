@@ -37,6 +37,11 @@ def save_image_as_bytes(image_as_bytes):
     return image_id
 
 
+def save_image_as_stream(stream):
+    stream.seek(0)
+    save_image_as_bytes(stream.read())
+
+
 def save_persona(FIRST, LAST, NOTES, image_id):
     url = spektor_url('persona')
     rv = requests.post(url, json=dict(first_name=FIRST, last_name=LAST, notes=NOTES, mugshot=image_id))
@@ -72,7 +77,7 @@ def maybe_save_face(face_id, image_id, top, bottom, left, right, embedding):
                                       bottom=bottom,
                                       left=left,
                                       right=right,
-                                      embedding=embedding))
+                                      embedding=json.dumps(embedding)))
         js = json.loads(rv.text)
         assert(rv.status_code == 201)
 

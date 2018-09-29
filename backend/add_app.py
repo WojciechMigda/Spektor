@@ -78,7 +78,7 @@ def work(UI, FIRST, LAST, NOTES, infile):
                                  bottom=largest['rectangle']['bottom'],
                                  left=largest['rectangle']['left'],
                                  right=largest['rectangle']['right'],
-                                 embedding=json.dumps(largest['rectangle']['embedding']))
+                                 embedding=largest['rectangle']['embedding'])
 
     # store avatar
     save_avatar(persona_id, face_id)
