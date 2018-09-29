@@ -47,13 +47,15 @@ def work(UI, FIRST, LAST, NOTES, infile):
     print('Found {} faces'.format(len(faces)))
 
     def largest_face(d):
-        r = d['rectangle']
         h = r['top'] - r['bottom']
         w = r['left'] - r['right']
         return abs(w * h)
 
-    largest = max(faces, key=largest_face)
+    def best_face(d):
+        r = d['rectangle']
+        return r['confidence']
 
+    primary = max(faces, key=best_face)
 
     if UI:
         while FIRST is None or len(FIRST) == 0:
@@ -73,12 +75,12 @@ def work(UI, FIRST, LAST, NOTES, infile):
     persona_id = save_persona(FIRST, LAST, NOTES, image_id)
 
     # store face
-    face_id, _ = maybe_save_face(largest['rectangle']['uuid'], image_id,
-                                 top=largest['rectangle']['top'],
-                                 bottom=largest['rectangle']['bottom'],
-                                 left=largest['rectangle']['left'],
-                                 right=largest['rectangle']['right'],
-                                 embedding=largest['rectangle']['embedding'])
+    face_id, _ = maybe_save_face(primary['rectangle']['uuid'], image_id,
+                                 top=primary['rectangle']['top'],
+                                 bottom=primary['rectangle']['bottom'],
+                                 left=primary['rectangle']['left'],
+                                 right=primary['rectangle']['right'],
+                                 embedding=primary['rectangle']['embedding'])
 
     # store avatar
     save_avatar(persona_id, face_id)
