@@ -16,9 +16,9 @@ def main(url='http://localhost:5000/spektor/detect', fname='Obama1.jpg'):
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
 
-    from skimage import io as skio
+    from PIL import Image
 
-    image = skio.imread(fname)
+    image = Image.open(fname)
     fig, ax = plt.subplots(1)
 
     # Display the image
@@ -27,6 +27,8 @@ def main(url='http://localhost:5000/spektor/detect', fname='Obama1.jpg'):
     for face in rv['faces']:
 
         fr = face['rectangle']
+        if fr['confidence'] < -0.4:
+            continue
         print({fr['uuid']: fr['embedding']})
 
         # Create a Rectangle patch
