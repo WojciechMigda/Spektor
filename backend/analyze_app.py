@@ -64,11 +64,11 @@ def names_by_ids(ids):
     page=1
 
     while True:
-        rv = requests.get(url, params=dict(q='{"filters":[{"name":"id","op":"in","val":"' +  str(ids) + '"}]}', page=page))
+        rv = requests.get(url, params=dict(q='{"filters":[{"name":"id","op":"in","val":' +  str(ids) + '}]}', page=page))
         js = json.loads(rv.text)
         assert(rv.status_code == 200)
         rows.extend(js['objects'])
-        if js['page'] <= js['total_pages']:
+        if js['page'] >= js['total_pages']:
             break
         page += 1
 
@@ -94,7 +94,7 @@ def work(infiles, THR=0.98):
 
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
-    from skimage import io as skio
+    from PIL import Image
 
     for infile, faces, faces_scores in matched_faces:
         print('>>> Image {}'.format(infile.name))
@@ -104,7 +104,7 @@ def work(infiles, THR=0.98):
         image_id = save_image_as_bytes(image_as_bytes)
 
         infile.seek(0)
-        image = skio.imread(infile)
+        image = Image.open(infile)
         fig, ax = plt.subplots(1)
 
         # Display the image
