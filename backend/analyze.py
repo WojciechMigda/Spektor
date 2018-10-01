@@ -51,6 +51,18 @@ USAGE
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
 
 
+        parser.add_argument("--confidence-thr",
+            type=float, action='store', dest="FACE_THR",
+            default=-0.4,
+            help="Confidence score threshold for acceptance of detected faces. The bigger the more strict face detection algorithm is.")
+
+
+        parser.add_argument("--similarity-thr",
+            type=float, action='store', dest="MATCH_THR",
+            default=0.98,
+            help="Face similarity score threshold for two faces to be considered as belonging to the same persona, range [0.0, 1.0]. The bigger the more strict face matching algorithm is.")
+
+
         parser.add_argument("infiles",
             type=FileType('rb'),
             default=None,
@@ -68,6 +80,8 @@ USAGE
         from analyze_app import work
 
         work(
+            args.FACE_THR,
+            args.MATCH_THR,
             args.infiles
             )
 

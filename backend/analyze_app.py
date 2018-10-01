@@ -86,9 +86,9 @@ def random_name():
     return rv
 
 
-def work(infiles, THR=0.98):
+def work(FACE_THR, MATCH_THR=0.98, infiles):
 
-    found_faces = [(infile, analyze_image(infile, confidence_thr=-0.4)) for infile in infiles]
+    found_faces = [(infile, analyze_image(infile, confidence_thr=FACE_THR)) for infile in infiles]
 
     matched_faces = [(infile, faces, analyze_faces(faces, NBEST=5)) for infile, faces in found_faces]
 
@@ -124,7 +124,7 @@ def work(infiles, THR=0.98):
             found_names = names_by_ids([pair[1] for pair in ranked_scored])
             all_found_names.append(found_names)
 
-            proposed_name = found_names[0] if ranked_scored[0][0] >= THR else random_name()
+            proposed_name = found_names[0] if ranked_scored[0][0] >= MATCH_THR else random_name()
             proposed_names.append(proposed_name)
             proposed_name_s = '{} {}'.format(*proposed_name)
 
@@ -146,13 +146,13 @@ def work(infiles, THR=0.98):
         for fid, (face, ranked_scored) in enumerate(zip(faces, faces_scores)):
             print('>>> Face [{}]'.format(fid + 1))
 
-            if ranked_scored[0][0] >= THR:
+            if ranked_scored[0][0] >= MATCH_THR:
                 print('... Face matched to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
                 print('... Please confirm either by typing number of a known persona or 0 to create new `NoName` persona')
 
                 N = None
                 for id, (name_t, (score, _)) in enumerate(zip(all_found_names[fid], ranked_scored)):
-                    if score < THR:
+                    if score < MATCH_THR:
                         break
                     print('{}. {} {}, {:.1f}%'.format(id + 1, *name_t, score * 100))
                     N = id + 1
