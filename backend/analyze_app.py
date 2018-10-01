@@ -86,7 +86,7 @@ def random_name():
     return rv
 
 
-def work(FACE_THR, MATCH_THR=0.98, infiles):
+def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
 
     found_faces = [(infile, analyze_image(infile, confidence_thr=FACE_THR)) for infile in infiles]
 
@@ -101,7 +101,7 @@ def work(FACE_THR, MATCH_THR=0.98, infiles):
 
         infile.seek(0)
         image_as_bytes = infile.read()
-        image_id = save_image_as_bytes(image_as_bytes)
+        image_id = DRYRUN or save_image_as_bytes(image_as_bytes)
 
         infile.seek(0)
         image = Image.open(infile)
@@ -112,7 +112,7 @@ def work(FACE_THR, MATCH_THR=0.98, infiles):
 
         for face in faces:
             fr = face['rectangle']
-            maybe_save_face(fr['uuid'], image_id, top=fr['top'], bottom=fr['bottom'], left=fr['left'], right=fr['right'], embedding=fr['embedding'])
+            DRYRUN or maybe_save_face(fr['uuid'], image_id, top=fr['top'], bottom=fr['bottom'], left=fr['left'], right=fr['right'], embedding=fr['embedding'])
 
         all_found_names = []
         proposed_names = []
@@ -165,15 +165,15 @@ def work(FACE_THR, MATCH_THR=0.98, infiles):
                     if 0 <= int(val) <= N:
                         break
                 if val == 0:
-                    persona_id = save_persona(*random_name(), 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+                    persona_id = DRYRUN or save_persona(*random_name(), 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
                 else:
                     persona_id = ranked_scored[val - 1][1]
                     #print('Selected persona_id {} for {}'.format(persona_id, all_found_names[fid][val - 1]))
             else:
                 print('... No matched persona was found. The best match was to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
-                persona_id = save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+                persona_id = DRYRUN or save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
 
-            save_avatar(persona_id, face['rectangle']['uuid'])
+            DRYRUN or save_avatar(persona_id, face['rectangle']['uuid'])
         input('Press any key')
         plt.close()
 

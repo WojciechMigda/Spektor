@@ -63,6 +63,11 @@ USAGE
             help="Face similarity score threshold for two faces to be considered as belonging to the same persona, range [0.0, 1.0]. The bigger the more strict face matching algorithm is.")
 
 
+        parser.add_argument("--dry-run",
+            action='store_true', dest="DRYRUN",
+            help="Do not save into the database")
+
+
         parser.add_argument("infiles",
             type=FileType('rb'),
             default=None,
@@ -80,6 +85,7 @@ USAGE
         from analyze_app import work
 
         work(
+            args.DRYRUN,
             args.FACE_THR,
             args.MATCH_THR,
             args.infiles
