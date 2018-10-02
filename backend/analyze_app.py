@@ -110,10 +110,6 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
         # Display the image
         ax.imshow(image)
 
-        for face in faces:
-            fr = face['rectangle']
-            DRYRUN or maybe_save_face(fr['uuid'], image_id, top=fr['top'], bottom=fr['bottom'], left=fr['left'], right=fr['right'], embedding=fr['embedding'])
-
         all_found_names = []
         proposed_names = []
 
@@ -156,32 +152,55 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
                         break
                     print('{}. {} {}, {:.1f}%'.format(id + 1, *name_t, score * 100))
                     N = id + 1
-                print('0. create `NoName` persona')
+
+                print('{}. create `NoName` persona'.format(N + 1))
+                print('0. skip detected face')
                 while True:
                     try:
                         val = int(input('??? '))
                     except Exception as e:
                         continue
-                    if 0 <= int(val) <= N:
+                    if 0 <= int(val) <= N + 1:
                         break
-                if val == 0:
+
+                if val == N + 1:
                     persona_id = DRYRUN or save_persona(*random_name(), 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
-                else:
+                elif val == 0:
+                    persona_id = None
+                    print('Skipped')
+                elif val <= N:
                     persona_id = ranked_scored[val - 1][1]
                     #print('Selected persona_id {} for {}'.format(persona_id, all_found_names[fid][val - 1]))
+
             else:
                 print('... No matched persona was found. The best match was to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
-                persona_id = DRYRUN or save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
 
-            DRYRUN or save_avatar(persona_id, face['rectangle']['uuid'])
+                if not DRYRUN:
+                    print('1. create persona <{} {}>'.format(*proposed_names[fid]))
+                    print('0. skip detected face')
+
+                    while True:
+                        try:
+                            val = int(input('??? '))
+                        except Exception as e:
+                            continue
+                        if 0 <= int(val) <= 1:
+                            break
+
+                    if val == 1:
+                        persona_id = save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+                    else:
+                        persona_id = None
+                        print('Skipped')
+                else:
+                    persona_id = None
+
+            if persona_id is not None:
+                fr = face['rectangle']
+                DRYRUN or maybe_save_face(fr['uuid'], image_id, top=fr['top'], bottom=fr['bottom'], left=fr['left'], right=fr['right'], embedding=fr['embedding'])
+                DRYRUN or save_avatar(persona_id, fr['uuid'])
+
         input('Press any key')
         plt.close()
-
-    """
-    zapisac zdjecie w bazie
-    zapisac embeddingi w bazie
-    utworzyc nowe persony dla No Name
-    zapisac nowe avatary
-    """
 
     return
