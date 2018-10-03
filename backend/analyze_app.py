@@ -86,6 +86,25 @@ def random_name():
     return rv
 
 
+def crop_around_the_face(image, fr):
+    # Create an outer Rectangle patch
+    W = fr['right'] - fr['left']
+    H = fr['bottom'] - fr['top']
+    X = (fr['right'] + fr['left']) / 2
+    Y = (fr['bottom'] + fr['top']) / 2
+    print(W, H, X, Y)
+    Xfactor = 0.8
+    Yfactor = 1.0
+    cutout = image.crop((int(X - Xfactor * W), int(Y - Yfactor * W), min(image.size[0], int(X + Xfactor * W)), min(image.size[1], int(Y + Yfactor * W))))
+
+    from io import BytesIO
+    ostream = BytesIO()
+    cutout.save(ostream, 'JPEG', quality=80)
+    ostream.seek(0)
+    return ostream.read()
+
+
+
 def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
 
     found_faces = [(infile, analyze_image(infile, confidence_thr=FACE_THR)) for infile in infiles]
@@ -142,6 +161,8 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
         for fid, (face, ranked_scored) in enumerate(zip(faces, faces_scores)):
             print('>>> Face [{}]'.format(fid + 1))
 
+            fr = face['rectangle']
+
             if ranked_scored[0][0] >= MATCH_THR:
                 print('... Face matched to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
                 print('... Please confirm either by typing number of a known persona or 0 to create new `NoName` persona')
@@ -164,7 +185,12 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
                         break
 
                 if val == N + 1:
-                    persona_id = DRYRUN or save_persona(*random_name(), 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+                    if DRYRUN:
+                        persona_id = None
+                    else:
+                        cutout_as_bytes = crop_around_the_face(image, fr)
+                        cutout_id = save_image_as_bytes(cutout_as_bytes)
+                        persona_id = save_persona(*random_name(), 'Persona from image {} <{}>'.format(image_id, infile.name), cutout_id)
                 elif val == 0:
                     persona_id = None
                     print('Skipped')
@@ -188,7 +214,9 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
                             break
 
                     if val == 1:
-                        persona_id = save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), image_id)
+                        cutout_as_bytes = crop_around_the_face(image, fr)
+                        cutout_id = save_image_as_bytes(cutout_as_bytes)
+                        persona_id = save_persona(*proposed_names[fid], 'Persona from image {} <{}>'.format(image_id, infile.name), cutout_id)
                     else:
                         persona_id = None
                         print('Skipped')
@@ -196,7 +224,6 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
                     persona_id = None
 
             if persona_id is not None:
-                fr = face['rectangle']
                 DRYRUN or maybe_save_face(fr['uuid'], image_id, top=fr['top'], bottom=fr['bottom'], left=fr['left'], right=fr['right'], embedding=fr['embedding'])
                 DRYRUN or save_avatar(persona_id, fr['uuid'])
 
