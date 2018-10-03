@@ -28,7 +28,7 @@ def on_analyze(app, js, known_faces, NBEST=5):
     NBEST = js['nbest']
 
     if len(known_faces) == 0:
-        return "[]"
+        return []
 
     import json
     known_embeddings = [json.loads(face.embedding) for face in known_faces]
