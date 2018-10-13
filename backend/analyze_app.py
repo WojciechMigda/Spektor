@@ -73,7 +73,7 @@ def names_by_ids(ids):
         page += 1
 
     mapping = {row['id']: (row['first_name'], row['last_name']) for row in rows}
-    rv = [mapping[id] for id in ids]
+    rv = [mapping[id] for id in ids if id in mapping]
     return rv
 
 
@@ -139,7 +139,7 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
             found_names = names_by_ids([pair[1] for pair in ranked_scored])
             all_found_names.append(found_names)
 
-            proposed_name = found_names[0] if ranked_scored[0][0] >= MATCH_THR else random_name()
+            proposed_name = found_names[0] if len(ranked_scored) and ranked_scored[0][0] >= MATCH_THR else random_name()
             proposed_names.append(proposed_name)
             proposed_name_s = '{} {}'.format(*proposed_name)
 
@@ -163,7 +163,7 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
 
             fr = face['rectangle']
 
-            if ranked_scored[0][0] >= MATCH_THR:
+            if len(ranked_scored) and ranked_scored[0][0] >= MATCH_THR:
                 print('... Face matched to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
                 print('... Please confirm either by typing number of a known persona or 0 to create new `NoName` persona')
 
@@ -199,7 +199,11 @@ def work(DRYRUN, FACE_THR, MATCH_THR, infiles):
                     #print('Selected persona_id {} for {}'.format(persona_id, all_found_names[fid][val - 1]))
 
             else:
-                print('... No matched persona was found. The best match was to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
+                print('... No matched persona was found.', end='')
+                if len(ranked_scored):
+                    print(' The best match was to <{}> with confidence score {:.1f}%'.format('{} {}'.format(*all_found_names[fid][0]), ranked_scored[0][0] * 100))
+                else:
+                    print()
 
                 if not DRYRUN:
                     print('1. create persona <{} {}>'.format(*proposed_names[fid]))
